@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.utils import IntegrityError
 
 from .utils import get_short_url
 from .models import UrlMap
@@ -10,22 +11,25 @@ class LongUrlsSerializer(serializers.Serializer):
     )
 
     def create(self, validated_data):
-        urls_map_query = UrlMap.objects.filter(long_url__in=validated_data['long_urls'])
-        existing_url_maps = urls_map_query.values_list('long_url', flat=True)
-
+        url_maps = []
         for long_url in validated_data['long_urls']:
-            if long_url in existing_url_maps:
-                continue
-            url_map, created = UrlMap.objects.get_or_create(
-                long_url=long_url,
-                defaults={'count': 0}
-            )
-            if created:
-                short_url = get_short_url(url_map.id)
-                url_map.short_url = short_url
-                url_map.save()
+            url_map = self.generate_and_save(long_url)
+            url_maps.append(url_map)
 
-        return urls_map_query
+        return url_maps
+
+    def generate_and_save(self, long_url):
+        short_url = get_short_url(long_url)
+        try:
+            url_map = UrlMap.objects.create(
+                long_url=long_url,
+                short_url=short_url,
+                count=0
+            )
+        except IntegrityError:
+            self.generate_and_save(long_url)
+        else:
+            return url_map
 
 
 class ShortUrlsSerializer(serializers.Serializer):
