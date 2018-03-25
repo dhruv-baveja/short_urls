@@ -12,6 +12,17 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 
 import os
 
+from pymongo import MongoClient
+
+MONGODB_CLIENT = MongoClient(
+    os.environ.get('MONGO_HOST', 'localhost'),
+    os.environ.get('MONGO_PORT', 27017),
+    username=os.environ.get('MONGO_USERNAME'),
+    password=os.environ.get('MONGO_PASSWORD')
+)
+PRIMARY_DATABASE = MONGODB_CLIENT.short_urls
+
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,6 +35,7 @@ SECRET_KEY = 'zhuxma-vkj3j+y(s^9p!*0zd*gqis4rg9g@^cst&_uwm3dg-zw'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
 
 ALLOWED_HOSTS = []
 
@@ -76,16 +88,7 @@ WSGI_APPLICATION = 'short_urls.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'short_urls',
-        'USER': 'shorter',
-        'PASSWORD': 'jf84hJ495#j2D#907H$#heSW',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+DATABASES = {}
 
 
 # Password validation
@@ -125,3 +128,27 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
 
 STATIC_URL = '/static/'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'redis_cache.RedisCache',
+        'LOCATION': '127.0.0.1:6379',
+        'OPTIONS': {
+            'DB': 1,
+            'PASSWORD': os.environ.get('CACHE_PASSWORD'),
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool'
+        },
+    },
+}
+
+SHORT_URL_REFILL_COUNT = 10000
+SHORT_URL_BUFFER_SIZE = 10000
+SHORT_URL_LENGTH = 8
+LONG_URL_CACHE_TIMEOUT = 7200
+
+CELERY_BROKER_URL = 'amqp://{user}:{password}@localhost:5672/{vhost}'.format(
+    user=os.environ.get('RABBITMQ_USERNAME'),
+    password=os.environ.get('RABBITMQ_PASSWORD'),
+    vhost=os.environ.get('RABBITMQ_VHOST')
+)

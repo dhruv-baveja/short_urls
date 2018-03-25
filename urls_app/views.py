@@ -1,14 +1,14 @@
 import re
 
 from django.shortcuts import redirect
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework import status
 
-from .models import UrlMap
 from .serializers import (
-    LongUrlsSerializer, UrlMapSerializer, ShortUrlsSerializer
+    LongUrlsSerializer, ShortUrlsSerializer
 )
 
 
@@ -25,8 +25,7 @@ class LongUrls(APIView):
             state = 'FAILED'
             response_status = status.HTTP_400_BAD_REQUEST
             if is_valid:
-                url_maps = serializer.save()
-                data = UrlMapSerializer(instance=url_maps, many=True).data
+                data = serializer.save()
                 status_codes = []
                 state = 'OK'
                 response_status = status.HTTP_200_OK
@@ -67,7 +66,7 @@ class ShortUrls(APIView):
             state = 'FAILED'
             response_status = status.HTTP_400_BAD_REQUEST
             if is_valid:
-                data = UrlMapSerializer(instance=url_maps, many=True).data
+                data = url_maps
                 status_codes = []
                 state = 'OK'
                 response_status = status.HTTP_200_OK
@@ -87,31 +86,29 @@ class ShortUrls(APIView):
     def _validate_and_get_short_urls(short_urls):
         errors = []
         is_valid = True
-        data = []
-
-        short_urls_query = UrlMap.objects.filter(short_url__in=short_urls)
-        existing_short_urls = short_urls_query.values_list('short_url', flat=True)
-        if len(short_urls) > short_urls_query.count():
+        mongo_db = settings.PRIMARY_DATABASE
+        short_urls = list(set(short_urls))
+        existing_short_urls = list(mongo_db.url_map.find(
+            {"short_url": {"$in": short_urls}},
+            projection={'_id': False}
+        ))
+        if len(short_urls) > len(existing_short_urls):
             is_valid = False
+            existing_short_urls_list = [item['short_url'] for item in existing_short_urls]
 
-        for short_url in short_urls:
-            if short_url not in existing_short_urls:
-                errors.append(short_url)
+            for item in short_urls:
+                if item not in existing_short_urls_list:
+                    errors.append(item)
 
-        if is_valid:
-            data = short_urls_query
-
-        return is_valid, errors, data
+        return is_valid, errors, existing_short_urls
 
 
 @api_view(['GET'])
 def short_url_redirect(request, short_url):
-
-    try:
-        url_map = UrlMap.objects.get(short_url=short_url)
-    except UrlMap.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    mongo_db = settings.PRIMARY_DATABASE
+    short_url_obj = mongo_db.url_map.find_one({'short_url': short_url})
+    if short_url_obj:
+        mongo_db.url_map.update({'short_url': short_url}, {'$inc': {'count': 1}})
+        return redirect(short_url_obj['long_url'])
     else:
-        url_map.count += 1
-        url_map.save()
-        return redirect(url_map.long_url)
+        return Response(status=status.HTTP_404_NOT_FOUND)
