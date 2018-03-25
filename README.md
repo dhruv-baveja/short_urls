@@ -22,7 +22,7 @@ Available API's:
 
 ## Architecture
 To come up with the architecture below, I researched and tested for which database and cache to use. 
-For more details regarding the thinking involved here, please look [here]().
+For more details regarding the thinking involved here, please look [here](https://github.com/dhruv-baveja/short_urls/blob/master/ARCHITECTURE.md).
 
 ### Components
 
