@@ -16,7 +16,7 @@ class LongUrls(APIView):
 
     def post(self, request):
         data = request.data
-        serializer = LongUrlsSerializer(data=data)
+        serializer = LongUrlsSerializer(data=data, context={'request': request})
         if serializer.is_valid(raise_exception=True):
             is_valid, errors = self._validate_long_urls(serializer.data['long_urls'])
 
@@ -60,7 +60,7 @@ class ShortUrls(APIView):
         data = request.data
         serializer = ShortUrlsSerializer(data=data)
         if serializer.is_valid(raise_exception=True):
-            is_valid, errors, url_maps = self._validate_and_get_short_urls(serializer.data['short_urls'])
+            is_valid, errors, url_maps = self._validate_and_get_short_urls(request, serializer.data['short_urls'])
             data = []
             status_codes = ['SHORT_URLS_NOT_FOUND']
             state = 'FAILED'
@@ -83,15 +83,17 @@ class ShortUrls(APIView):
             )
 
     @staticmethod
-    def _validate_and_get_short_urls(short_urls):
+    def _validate_and_get_short_urls(request, short_urls):
+        host_name = request.META['HTTP_HOST']
         errors = []
         is_valid = True
         mongo_db = settings.PRIMARY_DATABASE
-        short_urls = list(set(short_urls))
+        short_urls = [short_url.split("/")[-1] for short_url in set(short_urls)]
         existing_short_urls = list(mongo_db.url_map.find(
             {"short_url": {"$in": short_urls}},
             projection={'_id': False}
         ))
+
         if len(short_urls) > len(existing_short_urls):
             is_valid = False
             existing_short_urls_list = [item['short_url'] for item in existing_short_urls]
@@ -99,6 +101,9 @@ class ShortUrls(APIView):
             for item in short_urls:
                 if item not in existing_short_urls_list:
                     errors.append(item)
+
+        for item in existing_short_urls:
+            item['short_url'] = request.scheme + '://' + host_name + '/' + item['short_url']
 
         return is_valid, errors, existing_short_urls
 

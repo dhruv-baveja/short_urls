@@ -4,7 +4,7 @@ from .views import LongUrls, ShortUrls, short_url_redirect
 
 
 urlpatterns = [
-    url(r'^long_urls/', LongUrls.as_view()),
-    url(r'^short_urls/', ShortUrls.as_view()),
+    url(r'^urls/long/', LongUrls.as_view()),
+    url(r'^urls/short/', ShortUrls.as_view()),
     url(r'^(?P<short_url>[\w]+)/$', short_url_redirect),
 ]

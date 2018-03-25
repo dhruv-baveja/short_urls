@@ -11,6 +11,7 @@ class LongUrlsSerializer(serializers.Serializer):
     )
 
     def create(self, validated_data):
+        host_name = self.context['request'].META['HTTP_HOST']
         long_urls = set(validated_data['long_urls'])
         url_maps = []
         cached_long_urls = self._get_cached_long_urls(long_urls)
@@ -29,7 +30,7 @@ class LongUrlsSerializer(serializers.Serializer):
             cache.set(new_long_urls[i], new_short_urls[i], settings.LONG_URL_CACHE_TIMEOUT)
             response_list.append(
                 {
-                    'short_url': new_short_urls[i],
+                    'short_url': self.context['request'].scheme + '://' + host_name + '/' + new_short_urls[i],
                     'long_url': new_long_urls[i]
                 }
             )
@@ -37,7 +38,7 @@ class LongUrlsSerializer(serializers.Serializer):
             for long, short in cached_long_urls.items():
                 response_list.append(
                     {
-                        'short_url': short,
+                        'short_url': self.context['request'].scheme + '://' + host_name + '/' + short,
                         'long_url': long
                     }
                 )
@@ -54,5 +55,5 @@ class LongUrlsSerializer(serializers.Serializer):
 
 class ShortUrlsSerializer(serializers.Serializer):
     short_urls = serializers.ListField(
-        child=serializers.CharField(max_length=8)
+        child=serializers.CharField(max_length=50)
     )
