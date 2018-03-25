@@ -14,7 +14,7 @@ Available API's:
   - POST method
   - JSON format
   ```
-  {"short_urls": ["er23hf65", "Er47hF90"]}
+  {"short_urls": ["http://hck.re/er23hf65", "http://hck.re/Er47hF90"]}
   ```
 - /<short_url>/
   - GET method
